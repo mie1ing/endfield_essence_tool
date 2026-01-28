@@ -44,6 +44,19 @@ streamlit run app.py
 
 应用将在浏览器中自动打开
 
+## 项目结构
+
+```
+endfield_dungeon_tool/
+├── app.py              # Streamlit 主应用
+├── config.py           # 配置文件（品质、属性映射）
+├── data_loader.py      # 数据加载模块
+├── matcher.py          # 匹配/去重算法核心逻辑
+├── requirements.txt    # 项目依赖
+├── 副本.txt            # 副本数据
+└── 武器.txt            # 武器数据
+```
+
 ### 数据文件格式
 
 #### 副本文件（`副本.txt`）
@@ -94,15 +107,3 @@ streamlit run app.py
 | 流 | 流转        | 昂 | 昂扬 |
 | 医 | 医疗        | 切 | 切骨 |
 
-## 项目结构
-
-```
-endfield_dungeon_tool/
-├── app.py              # Streamlit 主应用
-├── config.py           # 配置文件（品质、属性映射）
-├── data_loader.py      # 数据加载模块
-├── matcher.py          # 匹配/去重算法核心逻辑
-├── requirements.txt    # 项目依赖
-├── 副本.txt            # 副本数据
-└── 武器.txt            # 武器数据
-```
