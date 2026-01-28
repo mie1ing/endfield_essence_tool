@@ -150,7 +150,10 @@ def main():
             with cols[i]:
                 btn_type = "primary" if selected_base == b else "secondary"
                 if st.button(base_label(b), key=f"base_{b}", type=btn_type, use_container_width=True):
-                    st.session_state["selected_base"] = b
+                    if selected_base == b:
+                        st.session_state.pop("selected_base", None)
+                    else:
+                        st.session_state["selected_base"] = b
                     st.rerun()
 
         # 附加属性行
@@ -160,7 +163,10 @@ def main():
             with cols[i]:
                 btn_type = "primary" if selected_add == a else "secondary"
                 if st.button(add_label(a), key=f"add_{a}", type=btn_type, use_container_width=True):
-                    st.session_state["selected_add"] = a
+                    if selected_add == a:
+                        st.session_state.pop("selected_add", None)
+                    else:
+                        st.session_state["selected_add"] = a
                     st.rerun()
 
         # 技能属性行
@@ -170,7 +176,10 @@ def main():
             with cols[i]:
                 btn_type = "primary" if selected_skill == s else "secondary"
                 if st.button(skill_label(s), key=f"skill_{s}", type=btn_type, use_container_width=True):
-                    st.session_state["selected_skill"] = s
+                    if selected_skill == s:
+                        st.session_state.pop("selected_skill", None)
+                    else:
+                        st.session_state["selected_skill"] = s
                     st.rerun()
 
         # 清除按钮
