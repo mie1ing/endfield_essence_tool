@@ -44,6 +44,9 @@ streamlit run app.py
 
 应用将在浏览器中自动打开
 
+### 使用网页
+https://endfieldessencetool.streamlit.app
+
 ## 项目结构
 
 ```
