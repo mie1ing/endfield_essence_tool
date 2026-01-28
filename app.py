@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import List, Tuple
 
 import pandas as pd
 import streamlit as st
@@ -15,7 +14,6 @@ from matcher import (
     can_drop_exact,
     enumerate_base_universe,
     recommend_plans_for_weapon,
-    score_plans_for_dungeon,
 )
 from config import *
 
@@ -61,14 +59,11 @@ def render_weapon_names_colored(names, weapon_index):
 def main():
     st.title("基质刷取计算工具")
 
-    # 使用默认配置，不显示sidebar
-    # default_dungeon = "副本.txt"
-    # default_weapon = "武器.txt"
     dungeon_path = "副本.txt"
     weapon_path = "武器.txt"
     encoding = "utf-8"
     rarity_filter = None
-    top_n = 10
+    top_n = 5
 
     try:
         dungeons, weapons = load_all(dungeon_path, weapon_path, encoding)
@@ -76,9 +71,7 @@ def main():
         st.error(f"读取数据失败：{e}")
         st.stop()
 
-    # weapon_index: Dict[str, Weapon] = build_weapon_index(weapons)
     base_universe = enumerate_base_universe(weapons)
-    weapon_index: Dict[str, Weapon] = {w.name: w for w in weapons}
 
     tab1, tab2 = st.tabs(["武器查询", "属性反查"])
 
