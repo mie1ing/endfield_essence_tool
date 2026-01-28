@@ -61,23 +61,14 @@ def render_weapon_names_colored(names, weapon_index):
 def main():
     st.title("基质刷取计算工具")
 
-    with st.sidebar:
-        st.header("数据文件")
-        default_dungeon = "副本.txt"
-        default_weapon = "武器.txt"
-
-        dungeon_path = st.text_input("副本文件路径", value=default_dungeon)
-        weapon_path = st.text_input("武器文件路径", value=default_weapon)
-
-        encoding = st.selectbox("文件编码", options=["utf-8", "utf-8-sig", "gbk"], index=0)
-
-        st.header("过滤")
-        rarity_text = st.text_input("只看品质", value="")
-        rarity_filter: Optional[Set[str]] = None
-        if rarity_text.strip():
-            rarity_filter = {x.strip() for x in rarity_text.split(",") if x.strip()}
-
-        top_n = st.slider("Top-N 刷法", min_value=3, max_value=30, value=10, step=1)
+    # 使用默认配置，不显示sidebar
+    # default_dungeon = "副本.txt"
+    # default_weapon = "武器.txt"
+    dungeon_path = "副本.txt"
+    weapon_path = "武器.txt"
+    encoding = "utf-8"
+    rarity_filter = None
+    top_n = 10
 
     try:
         dungeons, weapons = load_all(dungeon_path, weapon_path, encoding)
@@ -182,6 +173,13 @@ def main():
                     st.session_state["selected_skill"] = s
                     st.rerun()
 
+        # 清除按钮
+        if st.button("清除选择"):
+            for key in ["selected_base", "selected_add", "selected_skill"]:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.rerun()
+
         # 查找结果
         if selected_base and selected_add and selected_skill:
             st.markdown("---")
@@ -199,7 +197,7 @@ def main():
                     color = RARITY_COLOR.get(w.rarity, "#111827")
                     st.markdown(
                         f"- <span style='color:{color};font-weight:700'>[{w.rarity}] {w.name}</span> "
-                        f"({attr_label(w.base)}{attr_label(w.add)}{attr_label(w.skill)})",
+                        f"({attr_label(w.base)}/{attr_label(w.add)}/{attr_label(w.skill)})",
                         unsafe_allow_html=True
                     )
             else:
@@ -207,12 +205,12 @@ def main():
                     f"未找到匹配的武器：{base_label(selected_base)} + {add_label(selected_add)} + {skill_label(selected_skill)}"
                 )
 
-        # 清除按钮
-        if st.button("清除选择"):
-            for key in ["selected_base", "selected_add", "selected_skill"]:
-                if key in st.session_state:
-                    del st.session_state[key]
-            st.rerun()
+        # # 清除按钮
+        # if st.button("清除选择"):
+        #     for key in ["selected_base", "selected_add", "selected_skill"]:
+        #         if key in st.session_state:
+        #             del st.session_state[key]
+        #     st.rerun()
 
 
 if __name__ == "__main__":
