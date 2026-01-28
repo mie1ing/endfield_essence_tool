@@ -17,7 +17,7 @@ from matcher import (
 from config import *
 
 
-st.set_page_config(page_title="副本刷取计算工具", layout="wide")
+st.set_page_config(page_title="基质刷取计算工具", layout="wide")
 
 
 @st.cache_data(show_spinner=False)
@@ -56,7 +56,7 @@ def render_weapon_names_colored(names, weapon_index):
 
 
 def main():
-    st.title("副本刷取计算工具")
+    st.title("基质刷取计算工具")
 
     with st.sidebar:
         st.header("数据文件")
@@ -85,7 +85,7 @@ def main():
     # weapon_index: Dict[str, Weapon] = build_weapon_index(weapons)
     base_universe = enumerate_base_universe(weapons)
 
-    tab1, tab2 = st.tabs(["武器查询", "副本总览"])
+    tab1, tab2 = st.tabs(["武器查询", "总览"])
 
     # -------------------
     # Tab 1: 武器查询
@@ -110,10 +110,10 @@ def main():
             unsafe_allow_html=True,
         )
 
-        # 可刷副本列表
+        # 可刷能量淤积点列表
         ok_dungeons = [d for d in dungeons if can_drop_exact(d, target)]
         if not ok_dungeons:
-            st.warning("没有任何副本同时包含该武器的附加属性与技能属性，无法刷出完全匹配掉落物。")
+            st.warning("没有任何能量淤积点同时包含该武器的附加属性与技能属性，无法刷出完全匹配基质。")
         else:
             st.markdown("### 推荐刷法")
             for d in ok_dungeons:
@@ -132,14 +132,14 @@ def main():
                 st.dataframe(_plans_to_df(plans), use_container_width=True, hide_index=True)
 
     # -------------------
-    # Tab 2: 副本总览
+    # Tab 2: 能量淤积点总览
     # -------------------
     with tab2:
-        st.subheader("每个副本 Top-N 刷法（覆盖武器最多）")
+        st.subheader("每个能量淤积点 Top-N 刷法（覆盖武器最多）")
 
         # 选择一个副本或全部
         dungeon_names = [d.name for d in dungeons]
-        pick = st.selectbox("选择副本", options=["(全部)"] + dungeon_names, index=0)
+        pick = st.selectbox("选择能量淤积点", options=["(全部)"] + dungeon_names, index=0)
 
         if pick == "(全部)":
             for d in dungeons:
