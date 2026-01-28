@@ -14,14 +14,7 @@ from matcher import (
     recommend_plans_for_weapon,
     score_plans_for_dungeon,
 )
-
-RARITY_ORDER = ["红", "金"]
-RARITY_RANK = {r: i for i, r in enumerate(RARITY_ORDER)}
-
-RARITY_COLOR = {
-    "红": "#EF4444",
-    "金": "#F59E0B",
-}
+from config import *
 
 
 st.set_page_config(page_title="副本刷取计算工具", layout="wide")
@@ -37,7 +30,7 @@ def load_all(dungeon_path: str, weapon_path: str, encoding: str) -> Tuple[List[D
 def _plans_to_df(plans) -> pd.DataFrame:
     rows = []
     for p in plans:
-        lock_str = ("附加锁定=" if p.lock.kind == "add" else "技能锁定=") + p.lock.value
+        lock_str = ("附加锁定=" if p.lock.kind == "add" else "技能锁定=") + p.lock.label
         rows.append(
             {
                 "副本": p.dungeon_name,
@@ -77,7 +70,7 @@ def main():
         encoding = st.selectbox("文件编码", options=["utf-8", "utf-8-sig", "gbk"], index=0)
 
         st.header("过滤")
-        rarity_text = st.text_input("只看品质（可选，逗号分隔）", value="")
+        rarity_text = st.text_input("只看品质", value="")
         rarity_filter: Optional[Set[str]] = None
         if rarity_text.strip():
             rarity_filter = {x.strip() for x in rarity_text.split(",") if x.strip()}
@@ -90,7 +83,7 @@ def main():
         st.error(f"读取数据失败：{e}")
         st.stop()
 
-    weapon_index: Dict[str, Weapon] = build_weapon_index(weapons)
+    # weapon_index: Dict[str, Weapon] = build_weapon_index(weapons)
     base_universe = enumerate_base_universe(weapons)
 
     tab1, tab2 = st.tabs(["武器查询", "副本总览"])
@@ -114,7 +107,7 @@ def main():
         color = RARITY_COLOR.get(target.rarity, "#111827")
         st.markdown(
             f"目标武器：<span style='color:{color};font-weight:800'>{target.name}</span>"
-            f"（品质：{target.rarity}，属性：{target.base}{target.add}{target.skill}）",
+            f"（属性：{target.base}{target.add}{target.skill}）",
             unsafe_allow_html=True,
         )
 

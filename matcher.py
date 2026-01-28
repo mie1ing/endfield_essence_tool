@@ -5,9 +5,11 @@ from itertools import combinations
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from data_loader import Dungeon, Weapon
+from config import *
 
-RARITY_ORDER = ["红", "金"]
-RARITY_RANK = {r: i for i, r in enumerate(RARITY_ORDER)}
+
+def attr_label(ch: str) -> str:
+    return ATTR_FULLNAME.get(ch, ch)  # 没有映射就退回单字
 
 
 def sort_weapon_names_by_rarity(
@@ -27,10 +29,12 @@ def sort_weapon_names_by_rarity(
     unique = set(names)
     return tuple(sorted(unique, key=key))
 
+
 @dataclass(frozen=True)
 class LockChoice:
     kind: str   # "add" or "skill"
-    value: str  # single char
+    value: str  # single char （e.g. “攻”
+    label: str  # full name (e.g. "攻击提升")
 
 
 @dataclass(frozen=True)
@@ -68,7 +72,7 @@ def match_weapon_under_plan(d: Dungeon, w: Weapon, base_pick: Set[str], lock: Lo
 
 
 def enumerate_base_universe(weapons: Sequence[Weapon]) -> List[str]:
-    """基础属性全集（从武器表提取，通常很小）。"""
+    """基础属性全集（从武器表提取）。"""
     bases = sorted({w.base for w in weapons})
     return bases
 
@@ -93,8 +97,8 @@ def score_plans_for_dungeon(
 
     # 枚举锁定项：副本自带8种附加/技能
     locks: List[LockChoice] = (
-        [LockChoice("add", a) for a in sorted(d.add_set)]
-        + [LockChoice("skill", s) for s in sorted(d.skill_set)]
+        [LockChoice("add", a, attr_label(a)) for a in sorted(d.add_set)]
+        + [LockChoice("skill", s, attr_label(s)) for s in sorted(d.skill_set)]
     )
 
     plans: List[FarmPlan] = []
@@ -155,8 +159,8 @@ def recommend_plans_for_weapon(
 
     base_picks = gen_base_picks(base_universe)
     locks = [
-        LockChoice("add", target.add),     # 锁附加=目标附加
-        LockChoice("skill", target.skill), # 锁技能=目标技能
+        LockChoice("add", target.add, attr_label(target.add)),     # 锁附加=目标附加
+        LockChoice("skill", target.skill, attr_label(target.skill)), # 锁技能=目标技能
     ]
 
     plans: List[FarmPlan] = []
@@ -174,7 +178,6 @@ def recommend_plans_for_weapon(
                     matched.append(w.name)
             # 保证目标武器在匹配列表中
             if target.name in matched:
-                # matched_sorted = tuple(sorted(set(matched)))
                 matched_sorted = sort_weapon_names_by_rarity(matched, weapon_by_name)
                 plans.append(
                     FarmPlan(
