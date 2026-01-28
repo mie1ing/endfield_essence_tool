@@ -84,8 +84,9 @@ def main():
 
     # weapon_index: Dict[str, Weapon] = build_weapon_index(weapons)
     base_universe = enumerate_base_universe(weapons)
+    weapon_index: Dict[str, Weapon] = {w.name: w for w in weapons}
 
-    tab1, tab2 = st.tabs(["武器查询", "总览"])
+    tab1, tab2, tab3 = st.tabs(["武器查询", "总览", "属性反查"])
 
     # -------------------
     # Tab 1: 武器查询
@@ -168,6 +169,82 @@ def main():
                 st.write("无可覆盖武器的刷法（或基础属性全集不足3种）。")
             else:
                 st.dataframe(_plans_to_df(plans), use_container_width=True, hide_index=True)
+
+    # -------------------
+    # Tab 3: 属性反查
+    # -------------------
+    with tab3:
+        st.subheader("通过属性组合查找武器")
+        st.markdown("选择一个基础属性、一个附加属性和一个技能属性，查找对应的武器")
+
+        # 收集所有属性
+        all_base = sorted(set(w.base for w in weapons))
+        all_add = sorted(set(w.add for w in weapons))
+        all_skill = sorted(set(w.skill for w in weapons))
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.markdown("**基础属性**")
+            selected_base = None
+            for b in all_base:
+                if st.button(attr_label(b), key=f"base_{b}", use_container_width=True):
+                    st.session_state["selected_base"] = b
+            if "selected_base" in st.session_state:
+                selected_base = st.session_state["selected_base"]
+                st.info(f"已选择：{attr_label(selected_base)}")
+
+        with col2:
+            st.markdown("**附加属性**")
+            selected_add = None
+            for a in all_add:
+                if st.button(attr_label(a), key=f"add_{a}", use_container_width=True):
+                    st.session_state["selected_add"] = a
+            if "selected_add" in st.session_state:
+                selected_add = st.session_state["selected_add"]
+                st.info(f"已选择：{attr_label(selected_add)}")
+
+        with col3:
+            st.markdown("**技能属性**")
+            selected_skill = None
+            for s in all_skill:
+                if st.button(attr_label(s), key=f"skill_{s}", use_container_width=True):
+                    st.session_state["selected_skill"] = s
+            if "selected_skill" in st.session_state:
+                selected_skill = st.session_state["selected_skill"]
+                st.info(f"已选择：{attr_label(selected_skill)}")
+
+        # 查找结果
+        if selected_base and selected_add and selected_skill:
+            st.markdown("---")
+            st.markdown("### 查找结果")
+
+            # 过滤武器
+            matching_weapons = [
+                w for w in weapons
+                if w.base == selected_base and w.add == selected_add and w.skill == selected_skill
+            ]
+
+            if matching_weapons:
+                st.success(f"找到 {len(matching_weapons)} 件武器：")
+                for w in sorted(matching_weapons, key=lambda x: (RARITY_RANK.get(x.rarity, 999), x.name)):
+                    color = RARITY_COLOR.get(w.rarity, "#111827")
+                    st.markdown(
+                        f"- <span style='color:{color};font-weight:700'>[{w.rarity}] {w.name}</span> "
+                        f"({attr_label(w.base)}{attr_label(w.add)}{attr_label(w.skill)})",
+                        unsafe_allow_html=True
+                    )
+            else:
+                st.warning(
+                    f"未找到匹配的武器：{attr_label(selected_base)} + {attr_label(selected_add)} + {attr_label(selected_skill)}"
+                )
+
+        # 清除按钮
+        if st.button("清除选择"):
+            for key in ["selected_base", "selected_add", "selected_skill"]:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.rerun()
 
 
 if __name__ == "__main__":
