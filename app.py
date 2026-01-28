@@ -180,15 +180,17 @@ def main():
                     del st.session_state[key]
             st.rerun()
 
-        # 查找结果
-        if selected_base and selected_add and selected_skill:
+        # 查找结果（允许部分匹配）
+        if selected_base or selected_add or selected_skill:
             st.markdown("---")
             st.markdown("### 查找结果")
 
-            # 过滤武器
+            # 过滤武器：只对已选择的属性进行匹配
             matching_weapons = [
                 w for w in weapons
-                if w.base == selected_base and w.add == selected_add and w.skill == selected_skill
+                if (not selected_base or w.base == selected_base)
+                and (not selected_add or w.add == selected_add)
+                and (not selected_skill or w.skill == selected_skill)
             ]
 
             if matching_weapons:
@@ -201,9 +203,15 @@ def main():
                         unsafe_allow_html=True
                     )
             else:
-                st.warning(
-                    f"未找到匹配的武器：{base_label(selected_base)} + {add_label(selected_add)} + {skill_label(selected_skill)}"
-                )
+                # 组装提示语，只包含已选属性
+                parts = []
+                if selected_base:
+                    parts.append(base_label(selected_base))
+                if selected_add:
+                    parts.append(add_label(selected_add))
+                if selected_skill:
+                    parts.append(skill_label(selected_skill))
+                st.warning(f"未找到匹配的武器：{' + '.join(parts)}")
 
         # # 清除按钮
         # if st.button("清除选择"):
