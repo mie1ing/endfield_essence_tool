@@ -6,6 +6,26 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from data_loader import Dungeon, Weapon
 
+RARITY_ORDER = ["红", "金"]
+RARITY_RANK = {r: i for i, r in enumerate(RARITY_ORDER)}
+
+
+def sort_weapon_names_by_rarity(
+    names: Iterable[str],
+    weapon_by_name: Dict[str, Weapon],
+) -> Tuple[str, ...]:
+    """
+    将武器名列表按 (品质, 名称) 排序；未知品质排最后；未知武器名排最后。
+    """
+    def key(n: str):
+        w = weapon_by_name.get(n)
+        if w is None:
+            return (999, n)
+        return (RARITY_RANK.get(w.rarity, 999), w.name)
+
+    # 去重并排序
+    unique = set(names)
+    return tuple(sorted(unique, key=key))
 
 @dataclass(frozen=True)
 class LockChoice:
@@ -78,6 +98,7 @@ def score_plans_for_dungeon(
     )
 
     plans: List[FarmPlan] = []
+    weapon_by_name: Dict[str, Weapon] = {w.name: w for w in weapons}
     for bp in base_picks:
         bp_set = set(bp)
         for lk in locks:
@@ -88,7 +109,8 @@ def score_plans_for_dungeon(
                 if match_weapon_under_plan(d, w, bp_set, lk):
                     matched.append(w.name)
             if matched:
-                matched_sorted = tuple(sorted(set(matched)))
+                # matched_sorted = tuple(sorted(set(matched)))
+                matched_sorted = sort_weapon_names_by_rarity(matched, weapon_by_name)
                 plans.append(
                     FarmPlan(
                         dungeon_name=d.name,
@@ -138,6 +160,7 @@ def recommend_plans_for_weapon(
     ]
 
     plans: List[FarmPlan] = []
+    weapon_by_name: Dict[str, Weapon] = {w.name: w for w in weapons}
     for bp in base_picks:
         if target.base not in bp:
             continue
@@ -151,7 +174,8 @@ def recommend_plans_for_weapon(
                     matched.append(w.name)
             # 保证目标武器在匹配列表中
             if target.name in matched:
-                matched_sorted = tuple(sorted(set(matched)))
+                # matched_sorted = tuple(sorted(set(matched)))
+                matched_sorted = sort_weapon_names_by_rarity(matched, weapon_by_name)
                 plans.append(
                     FarmPlan(
                         dungeon_name=d.name,

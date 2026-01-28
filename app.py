@@ -15,6 +15,15 @@ from matcher import (
     score_plans_for_dungeon,
 )
 
+RARITY_ORDER = ["红", "金"]
+RARITY_RANK = {r: i for i, r in enumerate(RARITY_ORDER)}
+
+RARITY_COLOR = {
+    "红": "#EF4444",
+    "金": "#F59E0B",
+}
+
+
 st.set_page_config(page_title="副本刷取计算工具", layout="wide")
 
 
@@ -39,6 +48,19 @@ def _plans_to_df(plans) -> pd.DataFrame:
             }
         )
     return pd.DataFrame(rows)
+
+
+def render_weapon_names_colored(names, weapon_index):
+    # names: Iterable[str]
+    parts = []
+    for n in names:
+        w = weapon_index.get(n)
+        if not w:
+            parts.append(n)
+            continue
+        color = RARITY_COLOR.get(w.rarity, "#111827")
+        parts.append(f"<span style='color:{color};font-weight:600'>{w.name}</span>")
+    return "、".join(parts)
 
 
 def main():
@@ -79,28 +101,28 @@ def main():
     with tab1:
         st.subheader("指定武器 ->")
 
-        weapon_names = sorted(weapon_index.keys())
-        target_name = st.selectbox("选择武器", options=weapon_names, index=0 if weapon_names else None)
+        weapons_sorted = sorted(
+            weapons,
+            key=lambda w: (RARITY_RANK.get(w.rarity, 999), w.name)
+        )
 
-        if not target_name:
-            st.info("武器列表为空。请检查武器.txt 格式。")
-            st.stop()
+        def weapon_label(w: Weapon) -> str:
+            return f"{w.rarity} | {w.name}  ({w.base}{w.add}{w.skill})"
 
-        target = weapon_index[target_name]
-        st.write(f"目标武器：{target.name}（品质：{target.rarity}，属性：{target.base}{target.add}{target.skill}）")
+        target = st.selectbox("选择武器", options=weapons_sorted, format_func=weapon_label)
+
+        color = RARITY_COLOR.get(target.rarity, "#111827")
+        st.markdown(
+            f"目标武器：<span style='color:{color};font-weight:800'>{target.name}</span>"
+            f"（品质：{target.rarity}，属性：{target.base}{target.add}{target.skill}）",
+            unsafe_allow_html=True,
+        )
 
         # 可刷副本列表
         ok_dungeons = [d for d in dungeons if can_drop_exact(d, target)]
         if not ok_dungeons:
             st.warning("没有任何副本同时包含该武器的附加属性与技能属性，无法刷出完全匹配掉落物。")
         else:
-            # st.markdown("### 可刷副本")
-            # df_ok = pd.DataFrame(
-            #     [{"副本": d.name, "副本附加池": "".join(sorted(d.add_set)), "副本技能池": "".join(sorted(d.skill_set))}
-            #      for d in ok_dungeons]
-            # )
-            # st.dataframe(df_ok, use_container_width=True, hide_index=True)
-
             st.markdown("### 推荐刷法")
             for d in ok_dungeons:
                 st.markdown(f"#### {d.name}")
