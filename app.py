@@ -213,13 +213,6 @@ def main():
                     parts.append(skill_label(selected_skill))
                 st.warning(f"未找到匹配的武器：{' + '.join(parts)}")
 
-        # # 清除按钮
-        # if st.button("清除选择"):
-        #     for key in ["selected_base", "selected_add", "selected_skill"]:
-        #         if key in st.session_state:
-        #             del st.session_state[key]
-        #     st.rerun()
-
 
 if __name__ == "__main__":
     main()
