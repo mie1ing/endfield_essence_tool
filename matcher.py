@@ -139,18 +139,33 @@ def score_plans_for_dungeon(
     # 按覆盖数降序，再按 dungeon/base/lock 稳定排序
     plans.sort(key=lambda p: (-p.matched_count, p.dungeon_name, p.base_pick, p.lock.kind, p.lock.value))
 
-    # 可选：按“覆盖集合”去重（避免不同刷法覆盖完全相同武器集合）
-    deduped: List[FarmPlan] = []
-    seen: Set[Tuple[str, ...]] = set()
-    for p in plans:
-        if p.matched_weapon_names in seen:
-            continue
-        seen.add(p.matched_weapon_names)
-        deduped.append(p)
-        if len(deduped) >= top_n:
-            break
+    return dedupe_by_coverage(plans, top_n)
 
-    return deduped
+
+def dedupe_by_coverage(plans: Sequence[FarmPlan], top_n: int) -> List[FarmPlan]:
+    """按“覆盖集合”去重，并移除严格子集覆盖。"""
+    unique_plans: List[FarmPlan] = []
+    coverages: List[frozenset[str]] = []
+    seen: Set[frozenset[str]] = set()
+    for p in plans:
+        coverage = frozenset(p.matched_weapon_names)
+        if coverage in seen:
+            continue
+        seen.add(coverage)
+        unique_plans.append(p)
+        coverages.append(coverage)
+
+    keep: List[bool] = [True] * len(coverages)
+    for i, cov in enumerate(coverages):
+        for j, other in enumerate(coverages):
+            if i == j:
+                continue
+            if cov < other:
+                keep[i] = False
+                break
+
+    result = [p for p, k in zip(unique_plans, keep) if k]
+    return result[:top_n]
 
 
 def recommend_plans_for_weapon(
@@ -201,4 +216,4 @@ def recommend_plans_for_weapon(
                 )
 
     plans.sort(key=lambda p: (-p.matched_count, p.base_pick, p.lock.kind, p.lock.value))
-    return plans[:top_n]
+    return dedupe_by_coverage(plans, top_n)
