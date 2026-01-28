@@ -12,6 +12,18 @@ def attr_label(ch: str) -> str:
     return ATTR_FULLNAME.get(ch, ch)  # 没有映射就退回单字
 
 
+def base_label(ch: str) -> str:
+    return BASE_FULLNAME.get(ch, ch)
+
+
+def add_label(ch: str) -> str:
+    return ADD_FULLNAME.get(ch, ch)
+
+
+def skill_label(ch: str) -> str:
+    return SKILL_FULLNAME.get(ch, ch)
+
+
 def sort_weapon_names_by_rarity(
     names: Iterable[str],
     weapon_by_name: Dict[str, Weapon],

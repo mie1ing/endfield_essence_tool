@@ -9,6 +9,9 @@ import streamlit as st
 from data_loader import load_dungeons, load_weapons, Dungeon, Weapon
 from matcher import (
     attr_label,
+    base_label,
+    add_label,
+    skill_label,
     can_drop_exact,
     enumerate_base_universe,
     recommend_plans_for_weapon,
@@ -86,7 +89,7 @@ def main():
     base_universe = enumerate_base_universe(weapons)
     weapon_index: Dict[str, Weapon] = {w.name: w for w in weapons}
 
-    tab1, tab2, tab3 = st.tabs(["武器查询", "总览", "属性反查"])
+    tab1, tab2 = st.tabs(["武器查询", "属性反查"])
 
     # -------------------
     # Tab 1: 武器查询
@@ -133,54 +136,16 @@ def main():
                 st.dataframe(_plans_to_df(plans), use_container_width=True, hide_index=True)
 
     # -------------------
-    # Tab 2: 能量淤积点总览
+    # Tab 2: 属性反查
     # -------------------
     with tab2:
-        st.subheader("每个能量淤积点 Top-N 刷法（覆盖武器最多）")
-
-        # 选择一个副本或全部
-        dungeon_names = [d.name for d in dungeons]
-        pick = st.selectbox("选择能量淤积点", options=["(全部)"] + dungeon_names, index=0)
-
-        if pick == "(全部)":
-            for d in dungeons:
-                st.markdown(f"### {d.name}")
-                plans = score_plans_for_dungeon(
-                    d=d,
-                    weapons=weapons,
-                    base_universe=base_universe,
-                    top_n=top_n,
-                    rarity_filter=rarity_filter,
-                )
-                if not plans:
-                    st.write("无可覆盖武器的刷法（或基础属性全集不足3种）。")
-                    continue
-                st.dataframe(_plans_to_df(plans), use_container_width=True, hide_index=True)
-        else:
-            d = next(x for x in dungeons if x.name == pick)
-            plans = score_plans_for_dungeon(
-                d=d,
-                weapons=weapons,
-                base_universe=base_universe,
-                top_n=top_n,
-                rarity_filter=rarity_filter,
-            )
-            if not plans:
-                st.write("无可覆盖武器的刷法（或基础属性全集不足3种）。")
-            else:
-                st.dataframe(_plans_to_df(plans), use_container_width=True, hide_index=True)
-
-    # -------------------
-    # Tab 3: 属性反查
-    # -------------------
-    with tab3:
         st.subheader("通过属性组合查找武器")
         st.markdown("选择一个基础属性、一个附加属性和一个技能属性，查找对应的武器")
 
-        # 收集所有属性
-        all_base = sorted(set(w.base for w in weapons))
-        all_add = sorted(set(w.add for w in weapons))
-        all_skill = sorted(set(w.skill for w in weapons))
+        # 收集所有属性，按config.py中的顺序排列
+        all_base = [k for k in BASE_FULLNAME.keys() if any(w.base == k for w in weapons)]
+        all_add = [k for k in ADD_FULLNAME.keys() if any(w.add == k for w in weapons)]
+        all_skill = [k for k in SKILL_FULLNAME.keys() if any(w.skill == k for w in weapons)]
 
         # 获取当前选择
         selected_base = st.session_state.get("selected_base")
@@ -193,7 +158,7 @@ def main():
         for i, b in enumerate(all_base):
             with cols[i]:
                 btn_type = "primary" if selected_base == b else "secondary"
-                if st.button(attr_label(b), key=f"base_{b}", type=btn_type, use_container_width=True):
+                if st.button(base_label(b), key=f"base_{b}", type=btn_type, use_container_width=True):
                     st.session_state["selected_base"] = b
                     st.rerun()
 
@@ -203,7 +168,7 @@ def main():
         for i, a in enumerate(all_add):
             with cols[i]:
                 btn_type = "primary" if selected_add == a else "secondary"
-                if st.button(attr_label(a), key=f"add_{a}", type=btn_type, use_container_width=True):
+                if st.button(add_label(a), key=f"add_{a}", type=btn_type, use_container_width=True):
                     st.session_state["selected_add"] = a
                     st.rerun()
 
@@ -213,7 +178,7 @@ def main():
         for i, s in enumerate(all_skill):
             with cols[i]:
                 btn_type = "primary" if selected_skill == s else "secondary"
-                if st.button(attr_label(s), key=f"skill_{s}", type=btn_type, use_container_width=True):
+                if st.button(skill_label(s), key=f"skill_{s}", type=btn_type, use_container_width=True):
                     st.session_state["selected_skill"] = s
                     st.rerun()
 
@@ -239,7 +204,7 @@ def main():
                     )
             else:
                 st.warning(
-                    f"未找到匹配的武器：{attr_label(selected_base)} + {attr_label(selected_add)} + {attr_label(selected_skill)}"
+                    f"未找到匹配的武器：{base_label(selected_base)} + {add_label(selected_add)} + {skill_label(selected_skill)}"
                 )
 
         # 清除按钮

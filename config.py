@@ -6,12 +6,15 @@ RARITY_COLOR = {
     "金": "#F59E0B",
 }
 
-ATTR_FULLNAME = {
+BASE_FULLNAME = {
     "敏": "敏捷",
     "力": "力量",
     "意": "意志",
     "智": "智识",
     "主": "主能力",
+}
+
+ADD_FULLNAME = {
     "攻": "攻击提升",
     "生": "生命提升",
     "物": "物理伤害提升",
@@ -24,6 +27,9 @@ ATTR_FULLNAME = {
     "电": "电磁伤害提升",
     "治": "治疗效率提升",
     "终": "终极技充能效率提升",
+}
+
+SKILL_FULLNAME = {
     "强": "强攻",
     "压": "压制",
     "巧": "巧技",
@@ -38,5 +44,7 @@ ATTR_FULLNAME = {
     "昂": "昂扬",
     "医": "医疗",
     "切": "切骨",
-    # ...
 }
+
+# 合并字典用于向后兼容
+ATTR_FULLNAME = {**BASE_FULLNAME, **ADD_FULLNAME, **SKILL_FULLNAME}
