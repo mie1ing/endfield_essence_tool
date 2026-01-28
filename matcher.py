@@ -113,7 +113,6 @@ def score_plans_for_dungeon(
                 if match_weapon_under_plan(d, w, bp_set, lk):
                     matched.append(w.name)
             if matched:
-                # matched_sorted = tuple(sorted(set(matched)))
                 matched_sorted = sort_weapon_names_by_rarity(matched, weapon_by_name)
                 plans.append(
                     FarmPlan(
@@ -191,8 +190,3 @@ def recommend_plans_for_weapon(
 
     plans.sort(key=lambda p: (-p.matched_count, p.base_pick, p.lock.kind, p.lock.value))
     return plans[:top_n]
-
-
-def build_weapon_index(weapons: Sequence[Weapon]) -> Dict[str, Weapon]:
-    """武器名到对象（如有重名会覆盖；需要更严格可改成报错）。"""
-    return {w.name: w for w in weapons}

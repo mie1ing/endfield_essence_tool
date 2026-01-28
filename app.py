@@ -8,7 +8,7 @@ import streamlit as st
 
 from data_loader import load_dungeons, load_weapons, Dungeon, Weapon
 from matcher import (
-    build_weapon_index,
+    attr_label,
     can_drop_exact,
     enumerate_base_universe,
     recommend_plans_for_weapon,
@@ -30,11 +30,10 @@ def load_all(dungeon_path: str, weapon_path: str, encoding: str) -> Tuple[List[D
 def _plans_to_df(plans) -> pd.DataFrame:
     rows = []
     for p in plans:
-        lock_str = ("附加锁定=" if p.lock.kind == "add" else "技能锁定=") + p.lock.label
+        lock_str = ("附加属性 = " if p.lock.kind == "add" else "技能属性 = ") + p.lock.label
         rows.append(
             {
-                "副本": p.dungeon_name,
-                "基础三选": "".join(p.base_pick),
+                "基础三选": "，".join(attr_label(ch) for ch in p.base_pick),
                 "锁定": lock_str,
                 "覆盖武器数": p.matched_count,
                 "覆盖武器": "、".join(p.matched_weapon_names),
