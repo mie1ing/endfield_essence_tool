@@ -88,13 +88,10 @@ def greedy_select_plans(
     candidates: Sequence[FarmPlan],
     target_names: Sequence[str],
     other_counts: Sequence[int],
-    other_sets: Sequence[Tuple[str, ...]],
-    prefer_non_wuling: bool,
 ) -> Tuple[List[FarmPlan], Set[str], List[FarmPlan]]:
     """
     贪心覆盖：每步选择“新增覆盖最多目标武器”的刷法；
-    覆盖相同则优先选择“可覆盖更多其他武器”的刷法；
-    仍相同则（可选）优先选择不是“武陵城”的副本。
+    覆盖相同则优先选择“可覆盖更多其他武器”的刷法。
     """
     if not candidates:
         return [], set(target_names), []
@@ -116,8 +113,7 @@ def greedy_select_plans(
             new = coverages[i] & uncovered
             if not new:
                 continue
-            not_wuling = 1 if prefer_non_wuling and p.dungeon_name != "武陵城" else 0
-            score_key = (len(new), other_counts[i], not_wuling)
+            score_key = (len(new), other_counts[i])
             score = (score_key, _plan_sort_key(p))
             if best_score is None or score > best_score:
                 best_score = score
@@ -133,7 +129,6 @@ def greedy_select_plans(
             new = coverages[i] & uncovered
             if not new:
                 continue
-            not_wuling = 1 if prefer_non_wuling and p.dungeon_name != "武陵城" else 0
             tie_key = (len(new), other_counts[i])
             if tie_key == best_tie_key:
                 tied_indices.append(i)
@@ -159,7 +154,6 @@ def plan_multi_weapons(
     targets: Sequence[Weapon],
     base_universe: Sequence[str],
     rarity_filter: Optional[Set[str]] = None,
-    prefer_non_wuling: bool = False,
 ) -> MultiPlanResult:
     """
     多武器规划：在全副本范围内，使用尽可能少的刷法覆盖尽量多的目标武器。
@@ -177,24 +171,19 @@ def plan_multi_weapons(
     dungeon_by_name = {d.name: d for d in dungeons}
     target_set = set(target_names)
     other_counts: List[int] = []
-    other_sets: List[Tuple[str, ...]] = []
     for p in candidates:
         dungeon = dungeon_by_name.get(p.dungeon_name)
         if dungeon is None:
             other_counts.append(0)
-            other_sets.append(())
             continue
         all_matched = match_weapons_for_plan(dungeon, weapons, p)
         other_names = tuple(n for n in all_matched if n not in target_set)
         other_counts.append(len(other_names))
-        other_sets.append(other_names)
 
     selected, uncovered, display_plans = greedy_select_plans(
         candidates,
         target_names,
         other_counts,
-        other_sets,
-        prefer_non_wuling=prefer_non_wuling,
     )
 
     covered = [n for n in target_names if n not in uncovered]

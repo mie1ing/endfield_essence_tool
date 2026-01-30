@@ -280,8 +280,6 @@ def main():
             return f"{w.rarity} | {w.name}"
 
         targets = st.multiselect("选择目标武器（可多选）", options=weapons_sorted, format_func=weapon_label)
-        prefer_non_wuling = st.checkbox("下调“武陵城”优先级", value=False)
-        st.caption("注：该开关仅在“目标覆盖数”和“其他武器覆盖数”相同的情况下生效。")
 
         if not targets:
             st.info("请先选择至少一件目标武器。")
@@ -292,7 +290,6 @@ def main():
                 targets=targets,
                 base_universe=base_universe,
                 rarity_filter=rarity_filter,
-                prefer_non_wuling=prefer_non_wuling,
             )
 
             covered_cnt = len(result.covered_names)
