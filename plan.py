@@ -70,6 +70,19 @@ def build_candidate_plans_for_targets(
     return candidates
 
 
+def match_weapons_for_plan(dungeon: Dungeon, weapons: Sequence[Weapon], plan: FarmPlan) -> Tuple[str, ...]:
+    """
+    返回该刷法在指定副本下可覆盖的全部武器名（按稀有度排序）。
+    """
+    weapon_by_name: Dict[str, Weapon] = {w.name: w for w in weapons}
+    bp_set = set(plan.base_pick)
+    matched = [
+        w.name for w in weapons
+        if match_weapon_under_plan(dungeon, w, bp_set, plan.lock)
+    ]
+    return sort_weapon_names_by_rarity(matched, weapon_by_name)
+
+
 def greedy_select_plans(
     candidates: Sequence[FarmPlan],
     target_names: Sequence[str],

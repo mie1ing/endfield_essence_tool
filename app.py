@@ -15,7 +15,7 @@ from matcher import (
     enumerate_base_universe,
     recommend_plans_for_weapon,
 )
-from plan import plan_multi_weapons
+from plan import plan_multi_weapons, match_weapons_for_plan
 from config import *
 
 
@@ -44,17 +44,24 @@ def _plans_to_df(plans) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _multi_plans_to_df(plans) -> pd.DataFrame:
+def _multi_plans_to_df(plans, weapons, dungeons, target_names: set[str]) -> pd.DataFrame:
+    dungeon_by_name = {d.name: d for d in dungeons}
     rows = []
     for p in plans:
         lock_str = ("附加属性 = " if p.lock.kind == "add" else "技能属性 = ") + p.lock.label
+        dungeon = dungeon_by_name.get(p.dungeon_name)
+        if dungeon is None:
+            matched_all_sorted = ()
+        else:
+            matched_all_sorted = match_weapons_for_plan(dungeon, weapons, p)
+        other_names = tuple(n for n in matched_all_sorted if n not in target_names)
         rows.append(
             {
                 "副本": p.dungeon_name,
                 "基础三选": "，".join(attr_label(ch) for ch in p.base_pick),
                 "锁定": lock_str,
-                "覆盖目标数": p.matched_count,
                 "覆盖目标": "、".join(p.matched_weapon_names),
+                "其他武器": "、".join(other_names),
             }
         )
     return pd.DataFrame(rows)
@@ -236,7 +243,7 @@ def main():
     # Tab 3: 多武器规划
     # -------------------
     with tab3:
-        st.subheader("多武器规划（尽量少的副本与词条覆盖更多目标）")
+        st.subheader("多武器规划")
 
         weapons_sorted = sorted(
             weapons,
@@ -294,7 +301,12 @@ def main():
                 st.warning("未覆盖目标：" + "、".join(result.uncovered_names))
 
             if result.plans:
-                st.dataframe(_multi_plans_to_df(result.plans), use_container_width=True, hide_index=True)
+                target_names = {w.name for w in targets}
+                st.dataframe(
+                    _multi_plans_to_df(result.plans, weapons, dungeons, target_names),
+                    use_container_width=True,
+                    hide_index=True,
+                )
             else:
                 st.error("没有任何可行刷法（可能是基础属性种类不足或数据异常）。")
 
