@@ -90,15 +90,14 @@ def greedy_select_plans(
 ) -> Tuple[List[FarmPlan], Set[str]]:
     """
     贪心覆盖：每步选择“新增覆盖最多目标武器”的刷法；
-    覆盖相同则优先使用已出现的副本，以减少副本数量；
-    仍相同时优先选择“可覆盖更多其他武器”的刷法。
+    覆盖相同则优先选择“可覆盖更多其他武器”的刷法；
+    仍相同则优先选择不是“武陵城”的副本。
     """
     if not candidates:
         return [], set(target_names)
 
     uncovered: Set[str] = set(target_names)
     selected: List[FarmPlan] = []
-    used_dungeons: Set[str] = set()
 
     coverages: List[Set[str]] = [set(p.matched_weapon_names) for p in candidates]
 
@@ -111,11 +110,11 @@ def greedy_select_plans(
             new = coverages[i] & uncovered
             if not new:
                 continue
-            introduces = 0 if p.dungeon_name in used_dungeons else 1
+            not_wuling = 1 if p.dungeon_name != "武陵城" else 0
             score = (
                 len(new),
-                -introduces,
                 other_counts[i],
+                not_wuling,
                 _plan_sort_key(p),
             )
             if best_score is None or score > best_score:
@@ -128,7 +127,6 @@ def greedy_select_plans(
 
         chosen = candidates[best_idx]
         selected.append(chosen)
-        used_dungeons.add(chosen.dungeon_name)
         uncovered -= best_new
 
     return selected, uncovered
