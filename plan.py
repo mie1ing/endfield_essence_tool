@@ -86,10 +86,12 @@ def match_weapons_for_plan(dungeon: Dungeon, weapons: Sequence[Weapon], plan: Fa
 def greedy_select_plans(
     candidates: Sequence[FarmPlan],
     target_names: Sequence[str],
+    other_counts: Sequence[int],
 ) -> Tuple[List[FarmPlan], Set[str]]:
     """
     贪心覆盖：每步选择“新增覆盖最多目标武器”的刷法；
-    覆盖相同则优先使用已出现的副本，以减少副本数量。
+    覆盖相同则优先使用已出现的副本，以减少副本数量；
+    仍相同时优先选择“可覆盖更多其他武器”的刷法。
     """
     if not candidates:
         return [], set(target_names)
@@ -113,7 +115,7 @@ def greedy_select_plans(
             score = (
                 len(new),
                 -introduces,
-                len(coverages[i]),
+                other_counts[i],
                 _plan_sort_key(p),
             )
             if best_score is None or score > best_score:
@@ -134,6 +136,7 @@ def greedy_select_plans(
 
 def plan_multi_weapons(
     dungeons: Sequence[Dungeon],
+    weapons: Sequence[Weapon],
     targets: Sequence[Weapon],
     base_universe: Sequence[str],
     rarity_filter: Optional[Set[str]] = None,
@@ -151,7 +154,18 @@ def plan_multi_weapons(
         return MultiPlanResult(plans=(), covered_names=(), uncovered_names=(), target_count=0)
 
     candidates = build_candidate_plans_for_targets(dungeons, filtered_targets, base_universe)
-    selected, uncovered = greedy_select_plans(candidates, target_names)
+    dungeon_by_name = {d.name: d for d in dungeons}
+    target_set = set(target_names)
+    other_counts: List[int] = []
+    for p in candidates:
+        dungeon = dungeon_by_name.get(p.dungeon_name)
+        if dungeon is None:
+            other_counts.append(0)
+            continue
+        all_matched = match_weapons_for_plan(dungeon, weapons, p)
+        other_counts.append(len([n for n in all_matched if n not in target_set]))
+
+    selected, uncovered = greedy_select_plans(candidates, target_names, other_counts)
 
     covered = [n for n in target_names if n not in uncovered]
     return MultiPlanResult(

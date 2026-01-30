@@ -285,6 +285,7 @@ def main():
         else:
             result = plan_multi_weapons(
                 dungeons=dungeons,
+                weapons=weapons,
                 targets=targets,
                 base_universe=base_universe,
                 rarity_filter=rarity_filter,
