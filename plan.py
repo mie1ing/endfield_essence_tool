@@ -17,6 +17,7 @@ from matcher import (
 @dataclass(frozen=True)
 class MultiPlanResult:
     plans: Tuple[FarmPlan, ...]
+    display_plans: Tuple[FarmPlan, ...]
     covered_names: Tuple[str, ...]
     uncovered_names: Tuple[str, ...]
     target_count: int
@@ -87,24 +88,28 @@ def greedy_select_plans(
     candidates: Sequence[FarmPlan],
     target_names: Sequence[str],
     other_counts: Sequence[int],
+    other_sets: Sequence[Tuple[str, ...]],
     prefer_non_wuling: bool,
-) -> Tuple[List[FarmPlan], Set[str]]:
+) -> Tuple[List[FarmPlan], Set[str], List[FarmPlan]]:
     """
     贪心覆盖：每步选择“新增覆盖最多目标武器”的刷法；
     覆盖相同则优先选择“可覆盖更多其他武器”的刷法；
     仍相同则（可选）优先选择不是“武陵城”的副本。
     """
     if not candidates:
-        return [], set(target_names)
+        return [], set(target_names), []
 
     uncovered: Set[str] = set(target_names)
     selected: List[FarmPlan] = []
 
     coverages: List[Set[str]] = [set(p.matched_weapon_names) for p in candidates]
+    display_plans: List[FarmPlan] = []
+    display_keys: Set[Tuple[str, Tuple[str, str, str], str, str]] = set()
 
     while uncovered:
         best_idx: Optional[int] = None
-        best_score: Optional[Tuple[int, int, int, Tuple]] = None
+        best_score: Optional[Tuple[Tuple[int, int, int], Tuple]] = None
+        best_tie_key: Optional[Tuple[int, int]] = None
         best_new: Set[str] = set()
 
         for i, p in enumerate(candidates):
@@ -112,25 +117,40 @@ def greedy_select_plans(
             if not new:
                 continue
             not_wuling = 1 if prefer_non_wuling and p.dungeon_name != "武陵城" else 0
-            score = (
-                len(new),
-                other_counts[i],
-                not_wuling,
-                _plan_sort_key(p),
-            )
+            score_key = (len(new), other_counts[i], not_wuling)
+            score = (score_key, _plan_sort_key(p))
             if best_score is None or score > best_score:
                 best_score = score
+                best_tie_key = (len(new), other_counts[i])
                 best_idx = i
                 best_new = new
 
         if best_idx is None:
             break
 
+        tied_indices: List[int] = []
+        for i, p in enumerate(candidates):
+            new = coverages[i] & uncovered
+            if not new:
+                continue
+            not_wuling = 1 if prefer_non_wuling and p.dungeon_name != "武陵城" else 0
+            tie_key = (len(new), other_counts[i])
+            if tie_key == best_tie_key:
+                tied_indices.append(i)
+
+        for i in tied_indices:
+            p = candidates[i]
+            key = (p.dungeon_name, p.base_pick, p.lock.kind, p.lock.value)
+            if key in display_keys:
+                continue
+            display_keys.add(key)
+            display_plans.append(p)
+
         chosen = candidates[best_idx]
         selected.append(chosen)
         uncovered -= best_new
 
-    return selected, uncovered
+    return selected, uncovered, display_plans
 
 
 def plan_multi_weapons(
@@ -151,30 +171,36 @@ def plan_multi_weapons(
 
     target_names = [w.name for w in filtered_targets]
     if not target_names:
-        return MultiPlanResult(plans=(), covered_names=(), uncovered_names=(), target_count=0)
+        return MultiPlanResult(plans=(), display_plans=(), covered_names=(), uncovered_names=(), target_count=0)
 
     candidates = build_candidate_plans_for_targets(dungeons, filtered_targets, base_universe)
     dungeon_by_name = {d.name: d for d in dungeons}
     target_set = set(target_names)
     other_counts: List[int] = []
+    other_sets: List[Tuple[str, ...]] = []
     for p in candidates:
         dungeon = dungeon_by_name.get(p.dungeon_name)
         if dungeon is None:
             other_counts.append(0)
+            other_sets.append(())
             continue
         all_matched = match_weapons_for_plan(dungeon, weapons, p)
-        other_counts.append(len([n for n in all_matched if n not in target_set]))
+        other_names = tuple(n for n in all_matched if n not in target_set)
+        other_counts.append(len(other_names))
+        other_sets.append(other_names)
 
-    selected, uncovered = greedy_select_plans(
+    selected, uncovered, display_plans = greedy_select_plans(
         candidates,
         target_names,
         other_counts,
+        other_sets,
         prefer_non_wuling=prefer_non_wuling,
     )
 
     covered = [n for n in target_names if n not in uncovered]
     return MultiPlanResult(
         plans=tuple(selected),
+        display_plans=tuple(display_plans),
         covered_names=tuple(covered),
         uncovered_names=tuple(sorted(uncovered)),
         target_count=len(target_names),

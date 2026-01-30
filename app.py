@@ -47,7 +47,7 @@ def _plans_to_df(plans) -> pd.DataFrame:
 def _multi_plans_to_df(plans, weapons, dungeons, target_names: set[str]) -> pd.DataFrame:
     dungeon_by_name = {d.name: d for d in dungeons}
     rows = []
-    for p in plans:
+    for idx, p in enumerate(plans, start=1):
         lock_str = ("附加属性 = " if p.lock.kind == "add" else "技能属性 = ") + p.lock.label
         dungeon = dungeon_by_name.get(p.dungeon_name)
         if dungeon is None:
@@ -57,6 +57,7 @@ def _multi_plans_to_df(plans, weapons, dungeons, target_names: set[str]) -> pd.D
         other_names = tuple(n for n in matched_all_sorted if n not in target_names)
         rows.append(
             {
+                "方案": f"方案{idx}",
                 "副本": p.dungeon_name,
                 "基础三选": "，".join(attr_label(ch) for ch in p.base_pick),
                 "锁定": lock_str,
@@ -280,6 +281,7 @@ def main():
 
         targets = st.multiselect("选择目标武器（可多选）", options=weapons_sorted, format_func=weapon_label)
         prefer_non_wuling = st.checkbox("下调“武陵城”优先级", value=False)
+        st.caption("注：该开关仅在“目标覆盖数”和“其他武器覆盖数”相同的情况下生效。")
 
         if not targets:
             st.info("请先选择至少一件目标武器。")
@@ -305,8 +307,9 @@ def main():
 
             if result.plans:
                 target_names = {w.name for w in targets}
+                display_plans = result.display_plans or result.plans
                 st.dataframe(
-                    _multi_plans_to_df(result.plans, weapons, dungeons, target_names),
+                    _multi_plans_to_df(display_plans, weapons, dungeons, target_names),
                     use_container_width=True,
                     hide_index=True,
                 )
