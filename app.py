@@ -293,23 +293,25 @@ def main():
             )
 
             covered_cnt = len(result.covered_names)
-            unique_dungeons = len({p.dungeon_name for p in result.plans})
             st.markdown(
-                f"已覆盖 {covered_cnt}/{result.target_count} 件目标武器，"
-                f"使用 {len(result.plans)} 种刷法、{unique_dungeons} 个副本。"
+                f"已覆盖 {covered_cnt}/{result.target_count} 件目标武器。"
             )
 
             if result.uncovered_names:
                 st.warning("未覆盖目标：" + "、".join(result.uncovered_names))
 
-            if result.plans:
+            if result.strategies:
                 target_names = {w.name for w in targets}
-                display_plans = result.display_plans or result.plans
-                st.dataframe(
-                    _multi_plans_to_df(display_plans, weapons, dungeons, target_names),
-                    use_container_width=True,
-                    hide_index=True,
-                )
+                st.markdown(f"共 {len(result.strategies)} 种策略：")
+                for idx, strategy in enumerate(result.strategies, start=1):
+                    st.markdown(f"### 策略{idx}")
+                    for group in strategy.groups:
+                        st.markdown(f"#### 武器组合：{'、'.join(group.target_names)}")
+                        st.dataframe(
+                            _multi_plans_to_df(group.plans, weapons, dungeons, target_names),
+                            use_container_width=True,
+                            hide_index=True,
+                        )
             else:
                 st.error("没有任何可行刷法（可能是基础属性种类不足或数据异常）。")
 

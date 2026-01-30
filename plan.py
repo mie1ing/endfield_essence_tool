@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, Set, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from data_loader import Dungeon, Weapon
 from matcher import (
@@ -18,13 +18,74 @@ from matcher import (
 class MultiPlanResult:
     plans: Tuple[FarmPlan, ...]
     display_plans: Tuple[FarmPlan, ...]
+    strategies: Tuple["Strategy", ...]
     covered_names: Tuple[str, ...]
     uncovered_names: Tuple[str, ...]
     target_count: int
 
 
+@dataclass(frozen=True)
+class StrategyGroup:
+    target_names: Tuple[str, ...]
+    plans: Tuple[FarmPlan, ...]
+
+
+@dataclass(frozen=True)
+class Strategy:
+    groups: Tuple[StrategyGroup, ...]
+
+
 def _plan_sort_key(p: FarmPlan):
     return (p.dungeon_name, p.base_pick, p.lock.kind, p.lock.value)
+
+
+def _group_sort_key(names: Iterable[str]) -> Tuple[int, Tuple[str, ...]]:
+    ordered = tuple(sorted(names))
+    return (-len(ordered), ordered)
+
+
+def _partition_min_groups(
+    targets: Sequence[str],
+    groups: Sequence[frozenset[str]],
+) -> List[Tuple[frozenset[str], ...]]:
+    if not targets:
+        return []
+
+    target_set = set(targets)
+    group_list = [g for g in groups if g.issubset(target_set)]
+    group_list.sort(key=lambda g: (-len(g), tuple(sorted(g))))
+
+    by_target: Dict[str, List[frozenset[str]]] = {t: [] for t in target_set}
+    for g in group_list:
+        for t in g:
+            by_target[t].append(g)
+
+    best_len = None
+    results: List[Tuple[frozenset[str], ...]] = []
+
+    def backtrack(remaining: Set[str], current: List[frozenset[str]]):
+        nonlocal best_len, results
+        if not remaining:
+            if best_len is None or len(current) < best_len:
+                best_len = len(current)
+                results = [tuple(current)]
+            elif len(current) == best_len:
+                results.append(tuple(current))
+            return
+
+        if best_len is not None and len(current) >= best_len:
+            return
+
+        t = next(iter(sorted(remaining)))
+        for g in by_target.get(t, []):
+            if not g.issubset(remaining):
+                continue
+            current.append(g)
+            backtrack(remaining - g, current)
+            current.pop()
+
+    backtrack(set(targets), [])
+    return results
 
 
 def build_candidate_plans_for_targets(
@@ -166,36 +227,102 @@ def plan_multi_weapons(
 
     target_names = [w.name for w in filtered_targets]
     if not target_names:
-        return MultiPlanResult(plans=(), display_plans=(), covered_names=(), uncovered_names=(), target_count=0)
+        return MultiPlanResult(
+            plans=(),
+            display_plans=(),
+            strategies=(),
+            covered_names=(),
+            uncovered_names=(),
+            target_count=0,
+        )
 
     candidates = build_candidate_plans_for_targets(dungeons, filtered_targets, base_universe)
-    dungeon_by_name = {d.name: d for d in dungeons}
     target_set = set(target_names)
-    other_counts: List[int] = []
-    all_sets: List[Tuple[str, ...]] = []
+    dungeon_by_name = {d.name: d for d in dungeons}
+    plan_meta: Dict[Tuple[str, Tuple[str, str, str], str, str], Tuple[Tuple[str, ...], int]] = {}
     for p in candidates:
         dungeon = dungeon_by_name.get(p.dungeon_name)
         if dungeon is None:
-            other_counts.append(0)
-            all_sets.append(())
             continue
         all_matched = match_weapons_for_plan(dungeon, weapons, p)
-        other_names = tuple(n for n in all_matched if n not in target_set)
-        other_counts.append(len(other_names))
-        all_sets.append(all_matched)
+        other_count = len([n for n in all_matched if n not in target_set])
+        plan_meta[(p.dungeon_name, p.base_pick, p.lock.kind, p.lock.value)] = (all_matched, other_count)
 
-    selected, uncovered, display_plans = greedy_select_plans(
-        candidates,
-        target_names,
-        other_counts,
-        all_sets,
-    )
+    plans_by_group: Dict[frozenset[str], List[FarmPlan]] = {}
+    for p in candidates:
+        group = frozenset(p.matched_weapon_names)
+        if not group:
+            continue
+        plans_by_group.setdefault(group, []).append(p)
 
-    covered = [n for n in target_names if n not in uncovered]
+    coverable_targets = set().union(*plans_by_group.keys()) if plans_by_group else set()
+    uncovered = sorted(set(target_names) - coverable_targets)
+    covered = [n for n in target_names if n in coverable_targets]
+
+    strategies: List[Strategy] = []
+    if coverable_targets:
+        partitions = _partition_min_groups(covered, list(plans_by_group.keys()))
+        for part in partitions:
+            groups: List[StrategyGroup] = []
+            for group in sorted(part, key=lambda g: _group_sort_key(g)):
+                plans = plans_by_group.get(group, [])
+                # Dedupe: same dungeon + same full coverage result -> keep one plan
+                deduped: Dict[Tuple[str, frozenset[str]], FarmPlan] = {}
+                for p in plans:
+                    meta = plan_meta.get((p.dungeon_name, p.base_pick, p.lock.kind, p.lock.value))
+                    if meta is None:
+                        continue
+                    all_matched, _ = meta
+                    key = (p.dungeon_name, frozenset(all_matched))
+                    if key not in deduped:
+                        deduped[key] = p
+                    else:
+                        if _plan_sort_key(p) < _plan_sort_key(deduped[key]):
+                            deduped[key] = p
+                plans = list(deduped.values())
+
+                # Dedupe: remove plans whose "other weapons" is a strict subset of another plan
+                plan_other_sets: List[Tuple[FarmPlan, frozenset[str]]] = []
+                for p in plans:
+                    meta = plan_meta.get((p.dungeon_name, p.base_pick, p.lock.kind, p.lock.value))
+                    if meta is None:
+                        continue
+                    all_matched, _ = meta
+                    other_set = frozenset(set(all_matched) - target_set)
+                    plan_other_sets.append((p, other_set))
+
+                keep: List[FarmPlan] = []
+                for i, (p, other_set) in enumerate(plan_other_sets):
+                    is_subset = False
+                    for j, (_, other_other) in enumerate(plan_other_sets):
+                        if i == j:
+                            continue
+                        if other_set < other_other:
+                            is_subset = True
+                            break
+                    if not is_subset:
+                        keep.append(p)
+                plans = keep
+                plans_sorted = sorted(
+                    plans,
+                    key=lambda p: (
+                        -plan_meta.get((p.dungeon_name, p.base_pick, p.lock.kind, p.lock.value), ((), 0))[1],
+                        _plan_sort_key(p),
+                    ),
+                )
+                groups.append(
+                    StrategyGroup(
+                        target_names=tuple(sorted(group)),
+                        plans=tuple(plans_sorted),
+                    )
+                )
+            strategies.append(Strategy(groups=tuple(groups)))
+
     return MultiPlanResult(
-        plans=tuple(selected),
-        display_plans=tuple(display_plans),
+        plans=(),
+        display_plans=(),
+        strategies=tuple(strategies),
         covered_names=tuple(covered),
-        uncovered_names=tuple(sorted(uncovered)),
+        uncovered_names=tuple(uncovered),
         target_count=len(target_names),
     )
