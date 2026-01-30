@@ -104,7 +104,7 @@ def main():
         )
 
         def weapon_label(w: Weapon) -> str:
-            return f"{w.rarity} | {w.name}  ({w.base}{w.add}{w.skill})"
+            return f"{w.rarity} | {w.name}"
 
         target = st.selectbox("选择武器", options=weapons_sorted, format_func=weapon_label)
 
@@ -243,8 +243,33 @@ def main():
             key=lambda w: (RARITY_RANK.get(w.rarity, 999), w.name)
         )
 
+        st.markdown(
+            """
+            <style>
+            /* 尝试按标签文本前缀为多选标签上色（依赖 Streamlit 结构，若升级后失效可再调整） */
+            .stMultiSelect [data-baseweb="tag"] {
+                border-radius: 6px;
+                font-weight: 600;
+            }
+            .stMultiSelect [data-baseweb="tag"][title^="红 |"],
+            .stMultiSelect [data-baseweb="tag"] span[title^="红 |"] {
+                color: #991B1B;
+                background-color: #FEE2E2;
+                border-color: #FCA5A5;
+            }
+            .stMultiSelect [data-baseweb="tag"][title^="金 |"],
+            .stMultiSelect [data-baseweb="tag"] span[title^="金 |"] {
+                color: #92400E;
+                background-color: #FEF3C7;
+                border-color: #FCD34D;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+
         def weapon_label(w: Weapon) -> str:
-            return f"{w.rarity} | {w.name}  ({w.base}{w.add}{w.skill})"
+            return f"{w.rarity} | {w.name}"
 
         targets = st.multiselect("选择目标武器（可多选）", options=weapons_sorted, format_func=weapon_label)
 
@@ -253,7 +278,6 @@ def main():
         else:
             result = plan_multi_weapons(
                 dungeons=dungeons,
-                weapons=weapons,
                 targets=targets,
                 base_universe=base_universe,
                 rarity_filter=rarity_filter,

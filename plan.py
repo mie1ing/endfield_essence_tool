@@ -121,7 +121,6 @@ def greedy_select_plans(
 
 def plan_multi_weapons(
     dungeons: Sequence[Dungeon],
-    weapons: Sequence[Weapon],
     targets: Sequence[Weapon],
     base_universe: Sequence[str],
     rarity_filter: Optional[Set[str]] = None,
