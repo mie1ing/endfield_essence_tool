@@ -87,11 +87,12 @@ def greedy_select_plans(
     candidates: Sequence[FarmPlan],
     target_names: Sequence[str],
     other_counts: Sequence[int],
+    prefer_non_wuling: bool,
 ) -> Tuple[List[FarmPlan], Set[str]]:
     """
     贪心覆盖：每步选择“新增覆盖最多目标武器”的刷法；
     覆盖相同则优先选择“可覆盖更多其他武器”的刷法；
-    仍相同则优先选择不是“武陵城”的副本。
+    仍相同则（可选）优先选择不是“武陵城”的副本。
     """
     if not candidates:
         return [], set(target_names)
@@ -110,7 +111,7 @@ def greedy_select_plans(
             new = coverages[i] & uncovered
             if not new:
                 continue
-            not_wuling = 1 if p.dungeon_name != "武陵城" else 0
+            not_wuling = 1 if prefer_non_wuling and p.dungeon_name != "武陵城" else 0
             score = (
                 len(new),
                 other_counts[i],
@@ -138,6 +139,7 @@ def plan_multi_weapons(
     targets: Sequence[Weapon],
     base_universe: Sequence[str],
     rarity_filter: Optional[Set[str]] = None,
+    prefer_non_wuling: bool = False,
 ) -> MultiPlanResult:
     """
     多武器规划：在全副本范围内，使用尽可能少的刷法覆盖尽量多的目标武器。
@@ -163,7 +165,12 @@ def plan_multi_weapons(
         all_matched = match_weapons_for_plan(dungeon, weapons, p)
         other_counts.append(len([n for n in all_matched if n not in target_set]))
 
-    selected, uncovered = greedy_select_plans(candidates, target_names, other_counts)
+    selected, uncovered = greedy_select_plans(
+        candidates,
+        target_names,
+        other_counts,
+        prefer_non_wuling=prefer_non_wuling,
+    )
 
     covered = [n for n in target_names if n not in uncovered]
     return MultiPlanResult(
