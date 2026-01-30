@@ -15,6 +15,7 @@ from matcher import (
     enumerate_base_universe,
     recommend_plans_for_weapon,
 )
+from plan import plan_multi_weapons
 from config import *
 
 
@@ -38,6 +39,22 @@ def _plans_to_df(plans) -> pd.DataFrame:
                 "锁定": lock_str,
                 "覆盖武器数": p.matched_count,
                 "覆盖武器": "、".join(p.matched_weapon_names),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def _multi_plans_to_df(plans) -> pd.DataFrame:
+    rows = []
+    for p in plans:
+        lock_str = ("附加属性 = " if p.lock.kind == "add" else "技能属性 = ") + p.lock.label
+        rows.append(
+            {
+                "副本": p.dungeon_name,
+                "基础三选": "，".join(attr_label(ch) for ch in p.base_pick),
+                "锁定": lock_str,
+                "覆盖目标数": p.matched_count,
+                "覆盖目标": "、".join(p.matched_weapon_names),
             }
         )
     return pd.DataFrame(rows)
@@ -73,7 +90,7 @@ def main():
 
     base_universe = enumerate_base_universe(weapons)
 
-    tab1, tab2 = st.tabs(["武器查询", "属性反查"])
+    tab1, tab2, tab3 = st.tabs(["武器查询", "属性反查", "多武器规划"])
 
     # -------------------
     # Tab 1: 武器查询
@@ -214,6 +231,48 @@ def main():
                 if selected_skill:
                     parts.append(skill_label(selected_skill))
                 st.warning(f"未找到匹配的武器：{' + '.join(parts)}")
+
+    # -------------------
+    # Tab 3: 多武器规划
+    # -------------------
+    with tab3:
+        st.subheader("多武器规划（尽量少的副本与词条覆盖更多目标）")
+
+        weapons_sorted = sorted(
+            weapons,
+            key=lambda w: (RARITY_RANK.get(w.rarity, 999), w.name)
+        )
+
+        def weapon_label(w: Weapon) -> str:
+            return f"{w.rarity} | {w.name}  ({w.base}{w.add}{w.skill})"
+
+        targets = st.multiselect("选择目标武器（可多选）", options=weapons_sorted, format_func=weapon_label)
+
+        if not targets:
+            st.info("请先选择至少一件目标武器。")
+        else:
+            result = plan_multi_weapons(
+                dungeons=dungeons,
+                weapons=weapons,
+                targets=targets,
+                base_universe=base_universe,
+                rarity_filter=rarity_filter,
+            )
+
+            covered_cnt = len(result.covered_names)
+            unique_dungeons = len({p.dungeon_name for p in result.plans})
+            st.markdown(
+                f"已覆盖 {covered_cnt}/{result.target_count} 件目标武器，"
+                f"使用 {len(result.plans)} 种刷法、{unique_dungeons} 个副本。"
+            )
+
+            if result.uncovered_names:
+                st.warning("未覆盖目标：" + "、".join(result.uncovered_names))
+
+            if result.plans:
+                st.dataframe(_multi_plans_to_df(result.plans), use_container_width=True, hide_index=True)
+            else:
+                st.error("没有任何可行刷法（可能是基础属性种类不足或数据异常）。")
 
 
 if __name__ == "__main__":
