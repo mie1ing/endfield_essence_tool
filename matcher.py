@@ -175,6 +175,7 @@ def recommend_plans_for_weapon(
     base_universe: Sequence[str],
     top_n: int = 10,
     rarity_filter: Optional[Set[str]] = None,
+    excluded_weapon_names: Optional[Set[str]] = None,
 ) -> List[FarmPlan]:
     """
     在副本 d 中，筛选“包含目标武器”的高覆盖刷法 Top-N。
@@ -191,6 +192,8 @@ def recommend_plans_for_weapon(
 
     plans: List[FarmPlan] = []
     weapon_by_name: Dict[str, Weapon] = {w.name: w for w in weapons}
+    excluded = set(excluded_weapon_names or ())
+    excluded.discard(target.name)
     for bp in base_picks:
         if target.base not in bp:
             continue
@@ -198,6 +201,8 @@ def recommend_plans_for_weapon(
         for lk in locks:
             matched: List[str] = []
             for w in weapons:
+                if w.name in excluded:
+                    continue
                 if rarity_filter is not None and w.rarity not in rarity_filter:
                     continue
                 if match_weapon_under_plan(d, w, bp_set, lk):

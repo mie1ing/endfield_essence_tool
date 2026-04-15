@@ -115,6 +115,14 @@ def main():
             return f"{w.rarity} | {w.name}"
 
         target = st.selectbox("选择武器", options=weapons_sorted, format_func=weapon_label)
+        completed_options = [w for w in weapons_sorted if w.name != target.name]
+        completed_weapons = st.multiselect(
+            "排除武器",
+            options=completed_options,
+            format_func=weapon_label,
+            help="这些武器不会再计入推荐方案的覆盖武器数和覆盖列表。",
+        )
+        excluded_weapon_names = {w.name for w in completed_weapons}
 
         color = RARITY_COLOR.get(target.rarity, "#111827")
         st.markdown(
@@ -138,9 +146,13 @@ def main():
                     base_universe=base_universe,
                     top_n=top_n,
                     rarity_filter=rarity_filter,
+                    excluded_weapon_names=excluded_weapon_names,
                 )
                 if not plans:
-                    st.write("无推荐刷法（可能是基础属性全集不足3种或数据异常）。")
+                    if excluded_weapon_names:
+                        st.write("无推荐刷法（排除已完成武器后，没有可展示的覆盖方案）。")
+                    else:
+                        st.write("无推荐刷法（可能是基础属性全集不足3种或数据异常）。")
                     continue
                 st.dataframe(_plans_to_df(plans), use_container_width=True, hide_index=True)
 
