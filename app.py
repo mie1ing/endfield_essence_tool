@@ -29,7 +29,19 @@ def load_all(dungeon_path: str, weapon_path: str, encoding: str) -> Tuple[List[D
     return dungeons, weapons
 
 
-def _plans_to_df(plans) -> pd.DataFrame:
+def format_weapon_names_with_attrs(names, weapon_index) -> str:
+    parts = []
+    for n in names:
+        w = weapon_index.get(n)
+        if not w:
+            parts.append(n)
+            continue
+        attrs = f"{w.base}{w.add}{w.skill}"
+        parts.append(f"{w.name}（{attrs}）")
+    return "、".join(parts)
+
+
+def _plans_to_df(plans, weapon_index) -> pd.DataFrame:
     rows = []
     for p in plans:
         lock_str = ("附加属性 = " if p.lock.kind == "add" else "技能属性 = ") + p.lock.label
@@ -38,13 +50,13 @@ def _plans_to_df(plans) -> pd.DataFrame:
                 "基础三选": "，".join(attr_label(ch) for ch in p.base_pick),
                 "锁定": lock_str,
                 "覆盖武器数": p.matched_count,
-                "覆盖武器": "、".join(p.matched_weapon_names),
+                "覆盖武器": format_weapon_names_with_attrs(p.matched_weapon_names, weapon_index),
             }
         )
     return pd.DataFrame(rows)
 
 
-def _multi_plans_to_df(plans, weapons, dungeons, target_names: set[str]) -> pd.DataFrame:
+def _multi_plans_to_df(plans, weapons, dungeons, target_names: set[str], weapon_index) -> pd.DataFrame:
     dungeon_by_name = {d.name: d for d in dungeons}
     rows = []
     for idx, p in enumerate(plans, start=1):
@@ -61,8 +73,8 @@ def _multi_plans_to_df(plans, weapons, dungeons, target_names: set[str]) -> pd.D
                 "副本": p.dungeon_name,
                 "基础三选": "，".join(attr_label(ch) for ch in p.base_pick),
                 "锁定": lock_str,
-                "覆盖目标": "、".join(p.matched_weapon_names),
-                "其他武器": "、".join(other_names),
+                "覆盖目标": format_weapon_names_with_attrs(p.matched_weapon_names, weapon_index),
+                "其他武器": format_weapon_names_with_attrs(other_names, weapon_index),
             }
         )
     return pd.DataFrame(rows)
@@ -96,6 +108,7 @@ def main():
         st.error(f"读取数据失败：{e}")
         st.stop()
 
+    weapon_index = {w.name: w for w in weapons}
     base_universe = enumerate_base_universe(weapons)
 
     tab1, tab2, tab3 = st.tabs(["武器查询", "属性反查", "多武器规划"])
@@ -154,7 +167,7 @@ def main():
                     else:
                         st.write("无推荐刷法（可能是基础属性全集不足3种或数据异常）。")
                     continue
-                st.dataframe(_plans_to_df(plans), use_container_width=True, hide_index=True)
+                st.dataframe(_plans_to_df(plans, weapon_index), use_container_width=True, hide_index=True)
 
     # -------------------
     # Tab 2: 属性反查
@@ -320,7 +333,7 @@ def main():
                     for group in strategy.groups:
                         st.markdown(f"#### 武器组合：{'、'.join(group.target_names)}")
                         st.dataframe(
-                            _multi_plans_to_df(group.plans, weapons, dungeons, target_names),
+                            _multi_plans_to_df(group.plans, weapons, dungeons, target_names, weapon_index),
                             use_container_width=True,
                             hide_index=True,
                         )
